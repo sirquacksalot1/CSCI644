@@ -1,0 +1,9 @@
+services:
+  gcloud:
+    build: .
+    volumes:
+      - .:/app
+    volumes_from:
+      - container:gcloud-config
+    working_dir: /app
+    # command: gcloud app deploy

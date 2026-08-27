@@ -1,0 +1,72 @@
+# Assignment 2
+
+## Goals
+
+* Use Ansible
+* Update gcloud Dockerfile to have Ansible
+* Deploy [Simple Microservice Example](https://github.com/CSUChico-CSCI644/simple-microservice-example) to GCP via Ansible and Ansible gcloud support
+* Submit Ansible Playbook(s) to accomplish this.
+
+## Deployment Requirements
+
+Your playbook should create the GCP instance and deploy the application to it.
+The application code already includes health checks, readiness checks, runtime
+configuration, seed data, and end-to-end contract tests. Your work is to deploy
+and configure those pieces correctly.
+
+Your Ansible deployment must:
+
+* Configure required service environment variables without hard-coding hostnames
+  or secrets in the application source.
+* Run the MongoDB seed script in a way that is safe to repeat.
+* Configure NGINX so the frontend and `/api/` routes are reachable from one base
+  URL. A domain name is not required.
+* Start MongoDB, Redis, QuoteService, API Gateway, and NGINX using repeatable
+  Ansible tasks.
+* Run the contract test suite as the final verification step of the playbook.
+  The playbook should fail if the contract tests fail.
+
+The deployment is considered working when the Ansible playbook finishes by
+running the contract tests from the target VM:
+
+```bash
+make test-e2e BASE_URL=http://localhost
+```
+
+## Video Recording
+
+In addition to submitting your code to the course repo, submit a short screen
+recording to Canvas. Do not commit the video file to Git.
+
+In the recording, walk through your submission and explain what each major part
+does. Show your Ansible playbooks, templates, inventory or variable files, and
+the final verification step that runs the contract test suite.
+
+The goal is not video production quality. The goal is to show that you
+understand the work you submitted and can explain the choices in your own words.
+
+## Submission
+
+If you don't have a CSCI644 Git repo, go to Canvas to see the instructions for generating a Git Repo for this class.
+
+You will submit many of the the assignments for this class to separate branches on your CSCI644 repo. Make sure you make an initial **main** branch first as this will make things easier.
+
+Now submit your ansible playbook(s) and updated Dockerfile to the **assignment2** branch:
+
+```bash
+git checkout -b assignment2  #create branch and switch to it
+git add -A  #add all
+git commit -m "Assignment 2 Submission"  #Commit changes to branch
+git push origin assignment2  #Push code up to assignment2 branch on remote
+```
+
+Make sure your branch is exactly named `assignment2` matching the case, spacing, etc as my grading script will only pull your submission if it matches exactly.
+
+If you plan on making multiple updates to the code on this branch, you can include the `--set-upstream` option when you push the code (i.e. `git push --set-upstream origin assignment2`) -- this adds an upstream (tracking) reference so that, any time you push or pull from this branch in the future, you can simply use `git push` or `git pull`, without specifying the remote and branch.
+
+If you would like to merge your `assignment2` branch with your `main` branch, you can run the following commands:
+```bash
+git checkout main  #switch to the main branch
+git merge assignment2  #join the development history from the assignment1 branch with the current (main) branch
+git push origin main  #push the assignment2 history up to the main branch on the remote
+```
