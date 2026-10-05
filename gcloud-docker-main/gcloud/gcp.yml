@@ -1,0 +1,45 @@
+---
+- name: Create an GCP instance    
+  hosts: localhost
+  gather_facts: no
+  vars:
+    project_id: "csci644-assignment2"
+    zone: "us-central1-a"
+    instance_name: "assignment2"
+    machine_type: "e2-micro"
+    machine_image: "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260906"
+    gcp_credentials_file: "/app/csci66-test-2bec7476c9c1.json"
+    gcp_cred_kind: serviceaccount
+  tasks:
+    - name: Create GCP instance
+      google.cloud.gcp_compute_instance:
+      name: "{{ instance_name }}"
+      machine_type:  "{{machine_type}}"
+      zone: "{{ zone }}"
+      metadata:
+        ssh-keys: "csci644:{{ lookup('ansible.builtin.file', './id_ed25519.pub') }}"
+      disks:
+        - auto_delete: true
+          boot: true
+          initialize_params:
+            source_image: "{{ machine_image }}"
+            disk_size_gb: 10
+            disk_type: "pd-standard"
+            disk_name: "{{ instance_name }}-disk"
+          network_interfaces:
+            - network: "default"
+              access_configs:
+                - name: "STANDARD"
+                  type: "ONE_TO_ONE_NAT"
+      project: "{{ project_id }}"
+      auth_kind: "{{ gcp_cred_kind }}"
+      service_account_file: "{{ gcp_credentials_file }}"
+      tags:
+        items:
+          - "http-server"
+          - "https-server"
+      register: gcp_instance
+
+
+
+

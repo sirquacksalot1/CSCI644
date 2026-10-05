@@ -1,2 +1,3 @@
 google-cloud-compute
 ansible
+requests
