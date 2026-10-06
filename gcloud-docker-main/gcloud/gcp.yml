@@ -1,45 +1,122 @@
 ---
-- name: Create an GCP instance    
+- name: Create a GCP instance
   hosts: localhost
   gather_facts: no
   vars:
-    project_id: "csci644-assignment2"
+    project_id: "csci644-test"
     zone: "us-central1-a"
     instance_name: "assignment2"
     machine_type: "e2-micro"
     machine_image: "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-amd64-v20260906"
-    gcp_credentials_file: "/app/csci66-test-2bec7476c9c1.json"
+    gcp_credentials_file: "/app/csci644-test-2bec7476c9c1.json"
     gcp_cred_kind: serviceaccount
   tasks:
     - name: Create GCP instance
       google.cloud.gcp_compute_instance:
-      name: "{{ instance_name }}"
-      machine_type:  "{{machine_type}}"
-      zone: "{{ zone }}"
-      metadata:
-        ssh-keys: "csci644:{{ lookup('ansible.builtin.file', './id_ed25519.pub') }}"
-      disks:
-        - auto_delete: true
-          boot: true
-          initialize_params:
-            source_image: "{{ machine_image }}"
-            disk_size_gb: 10
-            disk_type: "pd-standard"
-            disk_name: "{{ instance_name }}-disk"
-          network_interfaces:
-            - network: "default"
-              access_configs:
-                - name: "STANDARD"
-                  type: "ONE_TO_ONE_NAT"
-      project: "{{ project_id }}"
-      auth_kind: "{{ gcp_cred_kind }}"
-      service_account_file: "{{ gcp_credentials_file }}"
-      tags:
-        items:
-          - "http-server"
-          - "https-server"
+        name: "{{ instance_name }}"
+        machine_type: "{{ machine_type }}"
+        zone: "{{ zone }}"
+        metadata:
+          ssh-keys: "csci644:{{ lookup('ansible.builtin.file', './id_ed25519.pub') }}"
+        disks:
+          - auto_delete: true
+            boot: true
+            initialize_params:
+              source_image: "{{ machine_image }}"
+              disk_size_gb: 10
+              disk_type: "pd-standard"
+              disk_name: "{{ instance_name }}-disk"
+        network_interfaces:
+          - network: null
+            access_configs:
+              - name: External NAT
+                network_tier: STANDARD
+                type: "ONE_TO_ONE_NAT"
+        project: "{{ project_id }}"
+        auth_kind: "{{ gcp_cred_kind }}"
+        service_account_file: "{{ gcp_credentials_file }}"
+        tags:
+          items:
+            - "http-server"
+            - "https-server"
       register: gcp_instance
 
+    - name: Output instance details
+      debug:
+        var: gcp_instance
+    
+    - name: Wait for SSH to come up
+      wait_for: host={{ gcp_instance.networkInterfaces[0].accessConfigs[0].natIP }} port=22 delay=10 timeout=60
 
+    - name: Add host to groupname
+      add_host: hostname={{ gcp_instance.networkInterfaces[0].accessConfigs[0].natIP }} groupname=new_instances
 
+- name: Display the public IP of the created instance
+  hosts: new_instances
+  connection: ssh
+  remote_user: csci644 
+  gather_facts: no
+  vars:
+    ansible_ssh_private_key_file: ./id_ed25519
+    ansible_python_interpreter: "/usr/bin/python3"
+  pre_tasks:
+    - name: Create ssh directory for root
+      connection: local
+      ansible.builtin.file:
+        path : /root/.ssh
+        state: directory
+        mode: '0755'
+    - name: Get new instance host key
+      connection: local
+      ansible.builtin.shell: "ssh-keyscan -H {{ inventory_hostname }}"
+      register: ssh_keyscan_output
+    - name: Create known_hosts file for root if it doesn't exist
+      connection: local
+      ansible.builtin.file:
+        path: "/root/.ssh/known_hosts"
+        state: touch
+        mode: '0644'
+    - name: Add the host key to root's known_hosts
+      connection: local
+      ansible.builtin.lineinfile:
+        path: "/root/.ssh/known_hosts"
+        line: "{{ ssh_keyscan_output.stdout }}"
+        state: present
+   
+  tasks:
+    - name: Display the public IP address
+      debug:
+        msg: "The public IP of the created instance is {{ ansible_host }}"
 
+    - name: Display the instance details
+      debug:
+        var: ansible_facts
+
+- name: Display the facts of the created instance
+  hosts: new_instances
+  connection: ssh
+  remote_user: csci644
+  gather_facts: no
+  vars:
+    ansible_ssh_private_key_file: ./id_ed25519
+    ansible_python_interpreter: "/usr/bin/python3"
+  tasks:
+    - name: Display the instance facts
+      debug:
+        var: ansible_facts
+    - name: Delete existing Simple Microservice directory if it exists
+      ansible.builtin.file:
+        path: /home/csci644/SimpleMicroservice
+        state: absent
+    - name: Clone the Simple Microservice repository
+      ansible.builtin.git:
+        repo: https://github.com/CSUChico-CSCI644/simple-microservice-example.git
+        dest: /home/csci644/SimpleMicroservice
+        single_branch: yes
+        version: main
+    - name: Change the permissions and ownership of the Simple Microservice directory
+      ansible.builtin.file:
+        path: /home/csci644/SimpleMicroservice
+        owner: csci644
+        group: csci644
+        recurse: true
